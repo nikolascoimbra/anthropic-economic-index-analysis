@@ -1,102 +1,76 @@
-# The AI Learning Curve
+# Anthropic Economic Index Analysis
 
-An independent analysis of Anthropic's [Economic Index](https://www.anthropic.com/research/the-anthropic-economic-index) dataset. The core finding: how people use AI matters more than whether they use it — and the signature of experience is a shift from delegation to collaboration.
+Analysis of the Anthropic Economic Index public dataset, examining how deployment context shapes AI task outcomes.
 
-## What this is
+**Central finding**: The same model family achieves 70% task success on Claude.ai and 50% on the 1P API. For 258 tasks present in both platforms, Claude.ai outperforms in 84.9% of cases (mean gap: 15.9pp). The gap is predicted by directive interaction share on the API (r = −0.263, p < 0.001) and reflects a measurable tradeoff between speed and human oversight.
 
-Anthropic published a dataset of 2 million anonymized conversations (1M Claude.ai, 1M first-party API) classified against the O\*NET occupational task database, alongside supplementary labor market files covering 756 occupations and ~18,000 tasks. They released the data on [HuggingFace](https://huggingface.co/datasets/Anthropic/EconomicIndex) alongside three reports ([Sep 2025](https://www.anthropic.com/research/the-anthropic-economic-index), [Jan 2026](https://www.anthropic.com/research/anthropic-economic-index-january-2026-report), [Mar 2026](https://www.anthropic.com/research/economic-index-march-2026-report)) focused on productivity and labor economics.
+## Dataset
 
-This repo runs the same data through a different lens. The question: **what does it look like when people get better at working with AI?**
+**Source**: [Anthropic Economic Index](https://huggingface.co/datasets/Anthropic/EconomicIndex), release 2026-03-24  
+**Coverage**: Conversations sampled February 5–12, 2026  
+**License**: CC-BY-4.0
 
-Anthropic's March 2026 report introduced a tenure analysis showing experienced users (6+ months) achieve higher success rates and more collaborative interaction styles. This repo extends that finding by identifying the task-level mechanism behind it:
+Four files:
+- `aei_raw_claude_ai_2026-02-05_to_2026-02-12.csv` — 1M Claude.ai conversations, 425K rows (long format)
+- `aei_raw_1p_api_2026-02-05_to_2026-02-12.csv` — 1M API conversations, 195K rows (long format)
+- `job_exposure.csv` — AI exposure scores for 756 O*NET occupations
+- `task_penetration.csv` — AI penetration scores for ~18,000 O*NET tasks
 
-- **Augmentation predicts success.** Across 1,923 O\*NET tasks, the share of augmentative (collaborative) interactions correlates with task success rate at r = 0.489 (p < 10⁻¹¹⁶). Tasks in the most-augmented quartile succeed 81.6% of the time vs. 65.2% in the least — a 16.4 percentage-point gap.
-- **The correlation survives controls.** Controlling for education requirements: r = 0.644. Controlling for volume: r = 0.636. Both controls together: r = 0.640. This is not a confound — it is a structural relationship.
-- **Task penetration reveals which tasks scale.** Joining the labor market supplementary data, high-penetration tasks show distinct automation/augmentation profiles and different success ceilings.
+Data is in long format: each row is one metric value for a geography × facet × variable combination.
 
-The learning curve, then, is not just "people get faster." Experienced users shift toward augmentation-dominant interaction patterns — and those patterns are the ones that actually work.
+## Key numbers
 
-All statistics are computed directly from the dataset. Nothing is hardcoded from the reports — the reports are referenced only for cross-validation.
+| Metric | Claude.ai | 1P API |
+|--------|-----------|--------|
+| Task success | 69.9% | 50.5% |
+| Augmentation share | 52.8% | 17.2% |
+| Directive share | 32.6% | 58.2% |
+| Learning share | 22.4% | 4.4% |
+| Speed vs baseline | 12.8× | 24.9× |
+
+**Per-task comparison (258 shared tasks)**:
+- Claude.ai outperforms API in 84.9% of tasks
+- Mean success gap: +15.9pp for Claude.ai
+- API directive share → success gap: r = −0.263, p < 0.001
+
+## Notebooks
+
+| Notebook | Contents |
+|----------|----------|
+| `01_core_analysis.ipynb` | Collaboration modes, use cases, geographic distribution, task complexity |
+| `02_advanced_analysis.ipynb` | Augmentation–success correlation, partial correlations, platform divergence, oversight erosion index |
+| `03_platform_oversight.ipynb` | Cross-platform natural experiment, per-task success comparison, mechanism analysis, speed tradeoff |
+
+Build scripts: `notebooks/build_notebook_0[1-3].py`
 
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/anthropic-economic-index-analysis.git
-cd anthropic-economic-index-analysis
-python -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
+python scripts/download_data.py     # downloads all 4 files from HuggingFace
+jupyter notebook notebooks/
 ```
 
-## Getting the data
+Requires Python 3.9+. Data files are excluded from the repo (see `.gitignore`); download separately.
 
-The dataset is ~140MB across four files. Two options:
-
-**Option 1: Download script** (requires `huggingface_hub`)
-```bash
-python scripts/download_data.py
-```
-
-**Option 2: Manual download** from [HuggingFace](https://huggingface.co/datasets/Anthropic/EconomicIndex/tree/main/release_2026_03_24)
-
-Download these files into `data/`:
-
-| File | Size | Contents |
-|---|---|---|
-| `aei_raw_claude_ai_2026-02-05_to_2026-02-12.csv` | 96 MB | Claude.ai conversations (Free/Pro/Max) |
-| `aei_raw_1p_api_2026-02-05_to_2026-02-12.csv` | 44 MB | First-party API conversations |
-| `job_exposure.csv` | 37 KB | 756 occupations with AI exposure scores |
-| `task_penetration.csv` | 1.9 MB | ~18,000 tasks with penetration scores |
-
-The first two are under `release_2026_03_24/data/`, the latter two under `release_2026_03_24/labor_market_impacts/`.
-
-Then open the notebooks:
-
-```bash
-jupyter notebook notebooks/01_core_analysis.ipynb
-```
-
-## Repo structure
+## Structure
 
 ```
-├── notebooks/
-│   ├── 01_core_analysis.ipynb       # Task distribution, collaboration modes,
-│   │                                # success rates, education, geographic patterns
-│   └── 02_advanced_analysis.ipynb   # Augmentation–success correlation, labor market
-│                                    # integration, geographic inequality, OEI
-├── src/
-│   ├── data.py            # Data loader and query functions for the AEI CSVs
-│   ├── report_data.py     # Published report statistics (for cross-validation)
-│   └── style.py           # Plot styling (Tufte-inspired, muted palette)
-├── scripts/
-│   └── download_data.py   # Downloads all four files from HuggingFace
-├── figures/                # Generated figures from the notebooks
-├── data/                   # CSV files (gitignored — download via script)
-├── requirements.txt
-└── LICENSE
+├── data/                    # downloaded data files (gitignored)
+├── figures/                 # all generated figures
+├── notebooks/               # analysis notebooks + build scripts
+├── scripts/                 # download_data.py, setup_repo.sh
+└── src/                     # data.py, style.py, report_data.py
 ```
 
-## Key numbers
+## Figures
 
-All computed from the February 5–12, 2026 release (2M conversations).
+New in notebook 03:
+- `p01_cross_platform_scatter.png` — per-task success: Claude.ai vs API (natural experiment)
+- `p02_mode_by_platform.png` — mode distribution by platform
+- `p03_directive_success_gap.png` — API directive share vs success gap
+- `p04_speed_success_tradeoff.png` — speed, success, and oversight tradeoff
 
-| Metric | Claude.ai | 1P API |
-|---|---|---|
-| Augmentation share | 52.8% | 17.2% |
-| Automation share | 44.2% | 67.6% |
-| Task success rate | 69.9% | 50.5% |
-| Human-only time (mean) | 3.1 hours | 1.7 hours |
-| Human+AI time (mean) | 14 minutes | 4 minutes |
-| Implied speedup | 12.8× | 24.9× |
-
-**Task-level augmentation–success correlation:** r = 0.489, p < 10⁻¹¹⁶ (N = 1,923 tasks, Claude.ai). Partial r = 0.640 controlling for education + volume.
-
-**Tenure effects** (from March 2026 report): 6+ month users show +5pp bivariate, +3pp complexity-controlled, +4pp all-controls success advantage over new users.
-
-## Data
-
-The dataset is published under CC-BY by Anthropic. Each row represents one metric value for a specific geography × facet × variable combination. The facets include O\*NET task mappings, collaboration patterns (directive, feedback loop, task iteration, learning, validation), use case, task success, education requirements, time estimates, and AI autonomy scores. Full schema in [Anthropic's data documentation](https://huggingface.co/datasets/Anthropic/EconomicIndex/blob/main/release_2026_03_24/data_documentation.md).
-
-## License
-
-Code: MIT. Data: CC-BY (Anthropic).
+From notebooks 01–02:
+- `01–07_*.png` — core analysis figures
+- `10–15_*.png` — advanced analysis figures
